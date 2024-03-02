@@ -52,7 +52,7 @@ SocketID createIPSocket(uint16_t port, Protocol protocol,char* serverIPAddress){
     addr.sin_zero[0] = '\0';
     if (bind(fd,(const struct sockaddr *)&addr, sizeof(struct sockaddr_in)) ==-1)
     {
-                printf("b\n");
+        printf("b\n");
         return -1;
     }
     if(protocol == TCP){
@@ -73,16 +73,23 @@ void* udpSocketThread(void* data){
     while(true){
         recvfrom(socket,&message,sizeof(ClassicMessage),0,&addrSrc,&lenAddr);
         if(strcmp(message.from,message.to)==0){
-            pthread_mutex_lock(&userDataLock); 
-            us_get_user(&userData,message.from)->udpAddr = addrSrc;
+            pthread_mutex_lock(&userDataLock);
+            if(us_get_user(&userData,message.from)!=NULL){
+                us_get_user(&userData,message.from)->udpAddr = addrSrc;
+            } 
+
             pthread_mutex_unlock(&userDataLock); 
 
         }
-        pthread_mutex_lock(&userDataLock); 
-        addrSrc = us_get_user(&userData,message.to)->udpAddr;
+        pthread_mutex_lock(&userDataLock);
+        if(us_get_user(&userData,message.to)!=NULL){
+            addrSrc = us_get_user(&userData,message.to)->udpAddr;
+        }
         pthread_mutex_unlock(&userDataLock); 
-        printf("UDP_READ\n");
-        sendto(socket,&message,sizeof(ClassicMessage),0,&addrSrc,sizeof(struct sockaddr_in));
+        if(us_get_user(&userData,message.to)!=NULL){
+            sendto(socket,&message,sizeof(ClassicMessage),0,&addrSrc,sizeof(struct sockaddr_in));
+        }
+        
     }
 }
 void* socketThread(void* data){
@@ -128,11 +135,15 @@ void* socketThread(void* data){
             write(socket,&message,sizeof(ClassicMessage));
         }
         else{
-            pthread_mutex_lock(&userDataLock); 
-            cd = *us_get_user(&userData,message.to);
+            pthread_mutex_lock(&userDataLock);
+            if(us_get_user(&userData,message.to)!=NULL){
+                cd = *us_get_user(&userData,message.to);
+            } 
             pthread_mutex_unlock(&userDataLock); 
+            if(us_get_user(&userData,message.to)!=NULL){
+                write(cd.socketFd,&message,sizeof(ClassicMessage));
+            }
 
-            write(cd.socketFd,&message,sizeof(ClassicMessage));
         }
     }
 }

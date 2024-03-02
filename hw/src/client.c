@@ -12,10 +12,12 @@
 #include <signal.h>
 #include <poll.h>
 #include <pthread.h> 
+#include <signal.h>
 #include "common.h"
 
 char name[NAME_SIZE];
 struct sockaddr_in addrMulticast;
+
 int initiateConnection(SocketID socketTcp,SocketID socketUdp, char* name){
     struct sockaddr_in addrUdp; 
     ControlMessage message = {
@@ -46,11 +48,61 @@ int initiateConnection(SocketID socketTcp,SocketID socketUdp, char* name){
 
     return 0;
 }
-int configMulticastIP(struct sockaddr_in* addr){
-    addr->sin_family = SOCK_DGRAM;
-    addr->sin_port = htons(PORT);
-    addr->sin_addr.s_addr = inet_addr(MULTICAST_IP);
-    addr->sin_zero[0] = '\0';
+SocketID createMulticastSocketRecv(uint16_t port, char* addresIPMulticast){
+    int fd;
+    int multiple = 1;
+    int loop = 1;
+    struct sockaddr_in addrIn;
+    if((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("socket");
+        return -1;
+    }
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &multiple, sizeof(int)) < 0){
+       perror("Reusing ADDR failed");
+       return -1;
+    }
+    if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(int)) < 0) {
+        perror("setsockopt: IP_MULTICAST_LOOP");
+        return -1;
+    }
+
+    addrIn.sin_family = AF_INET;
+    addrIn.sin_addr.s_addr = htonl(INADDR_ANY); 
+    addrIn.sin_port = htons(port);
+    addrIn.sin_zero[0] = '\0';
+
+    struct ip_mreq mreq;
+    mreq.imr_multiaddr.s_addr = inet_addr(addresIPMulticast);
+    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+
+    if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0
+    ){
+      return -1;
+    }
+    if (bind(fd, (struct sockaddr*) &addrIn, sizeof(struct sockaddr_in)) < 0) {
+        perror("bind");
+        return -1;
+    }
+    return fd;
+}
+int createMulticastSocketSend(uint16_t port, char* addresIPMulticast){
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        perror("socket");
+        return 1;
+    }
+
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(addresIPMulticast);
+    addr.sin_port = htons(port);
+    addr.sin_zero[0] = '\0';
+    if(connect(fd,&addr,sizeof(struct sockaddr_in))==-1){
+        perror("connect");
+        return -1;
+    }
+    return fd;
 }
 
 SocketID createIPSocket(uint16_t port, Protocol protocol,char* serverIPAddress){
@@ -81,22 +133,6 @@ SocketID createIPSocket(uint16_t port, Protocol protocol,char* serverIPAddress){
     addrSock.sin_port = htons(port);
     addrSock.sin_addr.s_addr = inet_addr(serverIPAddress);
     addrSock.sin_zero[0] = '\0';
-    if(protocol == UDP){
-        int loop=1;
-        struct in_addr localInt;
-        localInt.s_addr = htonl(INADDR_ANY);
-        struct ip_mreq multicastReq;
-        multicastReq.imr_multiaddr = addrMulticast.sin_addr;
-        multicastReq.imr_interface = localInt;
-        if(setsockopt(fd,IPPROTO_IP,IP_MULTICAST_LOOP,&loop,sizeof(int))==-1){
-            printf("b\n");
-            return -1;
-        }
-        if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &multicastReq, sizeof(struct ip_mreq))) {
-            printf("c\n");
-            return -1;
-        }
-    }
     if(connect(fd,(const struct sockaddr *)&addrSock, sizeof(struct sockaddr_in)) == -1){
         printf("d\n");
         return -1;
@@ -108,7 +144,8 @@ int sendMulticast(SocketID serverSocketUDP,char* message){
     memcpy(&(packedMessage.from),name,strlen(name));
     memcpy(&(packedMessage.to),MULTICAST_IP,strlen(MULTICAST_IP));
     memcpy(&(packedMessage.message),message,strlen(message));
-    sendto(serverSocketUDP,&packedMessage,sizeof(ClassicMessage),0,(const struct sockaddr *)&addrMulticast,sizeof(struct sockaddr_in));
+    // sendto(serverSocketUDP,&packedMessage,sizeof(ClassicMessage),0,&addrMulticast,sizeof(addrMulticast));
+    write(serverSocketUDP,&packedMessage,sizeof(ClassicMessage));
 }
 int sendStandard(SocketID serverSocket,char* message, char* to){
     ClassicMessage packedMessage = INIT_CLASSIC_MESSAGE;
@@ -143,25 +180,14 @@ void readMessage(char* buff, int maxSize){
     char* tmpPos;
     int tmpSize;
     getline(&buff, &maxSize, stdin);
-    // while(true){
-    //     tmpPos = buff+currPos;
-    //     tmpSize = maxSize-currPos;
-    //     readAl = getline(&tmpPos, &tmpSize, stdin);
-    //     if(readAl==-1){
-    //         ungetc((int)'a',stdin);
-    //         break;
-    //     }
-    //     tmpPos+=currPos;
-    // }
 }
 
-int userLoop(SocketID tcpSocket, SocketID udpSocket){
+int userLoop(SocketID tcpSocket, SocketID udpSocket, SocketID multicastSocket){
     char* buffer = malloc(sizeof(char)*MESSAGE_SIZE);
     char* bufferTmp = malloc(sizeof(char)*MESSAGE_SIZE);
     char* nameGiven = malloc(sizeof(char)*MESSAGE_SIZE);
     int tmpSize = MESSAGE_SIZE;
     while(true){
-
         int len;
         int prev = 0;
         // getline(&bufferTmp,&tmpSize,stdin)
@@ -182,7 +208,7 @@ int userLoop(SocketID tcpSocket, SocketID udpSocket){
             break;
             case 'M':
                 readMessage(buffer,MESSAGE_SIZE);
-                sendMulticast(udpSocket,buffer);
+                sendMulticast(multicastSocket,buffer);
                 printf("\nMessage sent\n");
             break;
             case 'L':
@@ -199,26 +225,30 @@ int userLoop(SocketID tcpSocket, SocketID udpSocket){
 void* recieveThread(void* data){
     SocketID socketTCP;
     SocketID socketUDP;
-    struct pollfd fds[2];
+    SocketID socketMulticast;
+    struct pollfd fds[3];
     ClassicMessage message;
     int pollVal;
     int i;
-    printf("New thread started\n");
     socketTCP = ((int*)data)[0];
     socketUDP = ((int*)data)[1];
+    socketMulticast = ((int*)data)[2];
 
     fds[0].fd = socketTCP;
     fds[0].events = POLLIN;
 
     fds[1].fd = socketUDP;
     fds[1].events = POLLIN;
+
+    fds[2].fd = socketMulticast;
+    fds[2].events = POLLIN;
     free(data);
     while(true){
-        pollVal = poll(fds,2,-1);
+        pollVal = poll(fds,3,-1);
         if(pollVal<=0){
             perror("Error with poll");
         }
-        for(i=0;i<2;i++){
+        for(i=0;i<3;i++){
             if(fds[i].revents == POLLIN){
                 break;
             }
@@ -241,7 +271,7 @@ void* recieveThread(void* data){
             }
         }
         else {
-            printf("From: %s\n",message.from);
+            printf("From: %s",message.from);
             printf("%s",message.message);
         }
 
@@ -252,6 +282,8 @@ int main()
 {   
     SocketID socketTCP;
     SocketID socketUDP;
+    SocketID socketMultiSend;
+    SocketID socketMultiRecv;
     pthread_t thread_id;
     struct sockaddr_in addrUDP;
     void* tData;
@@ -262,14 +294,19 @@ int main()
     printf("Select username: ");
     fgets(name,NAME_SIZE,stdin);
 
-    configMulticastIP(&addrMulticast);
     if((socketTCP = createIPSocket(PORT,TCP,SERVER_IP))==-1){
         perror("Unable to create TCP socket");
     }
     if((socketUDP = createIPSocket(PORT,UDP,SERVER_IP))==-1){
         perror("Unable to create UDP socket");
     }
-    // addrStdUDP = addrUDP;
+    if((socketMultiSend = createMulticastSocketSend(PORT_MULTICAST,MULTICAST_IP))==-1){
+        perror("Unable to create UDP socket");
+    }
+    if((socketMultiRecv = createMulticastSocketRecv(PORT_MULTICAST,MULTICAST_IP))==-1){
+        perror("Unable to create UDP socket");
+    }
+
     if(initiateConnection(socketTCP,socketUDP,name)){
         perror("Unable log into server");
     }
@@ -278,8 +315,8 @@ int main()
     }
     ((int*)tData)[0] = socketTCP;
     ((int*)tData)[1] = socketUDP;
-
+    ((int*)tData)[2] = socketMultiRecv;
     pthread_create(&thread_id,NULL,recieveThread,tData);
-    userLoop(socketTCP,socketUDP);
+    userLoop(socketTCP,socketUDP,socketMultiSend);
     return 0;
 }

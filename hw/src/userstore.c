@@ -10,14 +10,12 @@ void us_add_user(AllClients* all, ClientData data){
 }
 
 ClientData* us_get_user(AllClients* all, char* name){
-  ClientData d = {.socketFd = -1};
   for(int i=0;i<all->n;i++){
     if(strcmp(all->data[i].name,name)==0){
       return &(all->data[i]);
     }
   }
-
-  return &d;
+  return NULL;
 }
 void us_remove_user(AllClients* all, char* name){
   for(int i=0;i<all->n;i++){

@@ -11,8 +11,8 @@
 
 #define SERVER_IP "127.0.0.1"
 #define MULTICAST_IP "230.0.0.1"
-#define MULTICAST_RECIEVE_ON_IP "230.0.0.1 127.0.0.1"
-#define PORT 12127
+#define PORT 13218
+#define PORT_MULTICAST 13334
 #define MAX_WAITING 8
 #define MAX_CLIENTS 8
 
