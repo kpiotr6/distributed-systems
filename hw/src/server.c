@@ -20,7 +20,7 @@
 
 
 AllClients userData = {.n = 0};
-
+pthread_mutex_t userDataLock; 
 
 SocketID createIPSocket(uint16_t port, Protocol protocol,char* serverIPAddress){
     SocketID fd = -1;
@@ -72,8 +72,15 @@ void* udpSocketThread(void* data){
     socket = *((SocketID*)data);
     while(true){
         recvfrom(socket,&message,sizeof(ClassicMessage),0,&addrSrc,&lenAddr);
-        us_get_user(&userData,message.from)->udpAddr = addrSrc;
+        if(strcmp(message.from,message.to)==0){
+            pthread_mutex_lock(&userDataLock); 
+            us_get_user(&userData,message.from)->udpAddr = addrSrc;
+            pthread_mutex_unlock(&userDataLock); 
+
+        }
+        pthread_mutex_lock(&userDataLock); 
         addrSrc = us_get_user(&userData,message.to)->udpAddr;
+        pthread_mutex_unlock(&userDataLock); 
         printf("UDP_READ\n");
         sendto(socket,&message,sizeof(ClassicMessage),0,&addrSrc,sizeof(struct sockaddr_in));
     }
@@ -93,14 +100,21 @@ void* socketThread(void* data){
     memcpy(cd.name,control.name,strlen(control.name));
     cd.socketFd = socket;
     cd.udpAddr = control.in;
-
+    
+    pthread_mutex_lock(&userDataLock); 
     us_add_user(&userData,cd);
+    pthread_mutex_unlock(&userDataLock); 
+
+    write(socket,&control,sizeof(ControlMessage));
+
     printf("New thread started for user: %s\n",control.name);
     while(true){
         read(socket,&message,sizeof(ClassicMessage));
         if(message.end){
             write(socket,&message,sizeof(ClassicMessage));
+            pthread_mutex_lock(&userDataLock); 
             us_remove_user(&userData,message.from);
+            pthread_mutex_unlock(&userDataLock); 
             break;
         }
         else if(message.list){
@@ -114,7 +128,10 @@ void* socketThread(void* data){
             write(socket,&message,sizeof(ClassicMessage));
         }
         else{
+            pthread_mutex_lock(&userDataLock); 
             cd = *us_get_user(&userData,message.to);
+            pthread_mutex_unlock(&userDataLock); 
+
             write(cd.socketFd,&message,sizeof(ClassicMessage));
         }
     }
@@ -129,6 +146,9 @@ int main()
     void* tData;
     int addrLen;
     int clientTCP;
+    if (pthread_mutex_init(&userDataLock, NULL) != 0) { 
+        perror("Unable to create mutex");
+    } 
     if ((tcpSocket = createIPSocket(PORT,TCP,SERVER_IP)) == -1)
     {
         printf("%d\n",tcpSocket);
@@ -154,6 +174,6 @@ int main()
             pthread_create(&thread_id,NULL,socketThread,tData);
         }
     }
-
+    pthread_mutex_destroy(&userDataLock); 
     return 0;
 }

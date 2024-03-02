@@ -30,6 +30,10 @@ int initiateConnection(SocketID socketTcp,SocketID socketUdp, char* name){
         printf("s\n");
         return -1;
     }
+    if(read(socketTcp,&message,sizeof(ControlMessage))==-1){
+        printf("g\n");
+        return -1;
+    }
     if(write(socketUdp,&initUdpmessage,sizeof(ClassicMessage))==-1){
         printf("o\n");
         return -1;
@@ -38,6 +42,8 @@ int initiateConnection(SocketID socketTcp,SocketID socketUdp, char* name){
         printf("g\n");
         return -1;
     }
+
+
     return 0;
 }
 int configMulticastIP(struct sockaddr_in* addr){
