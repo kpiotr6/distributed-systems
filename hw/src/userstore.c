@@ -20,7 +20,7 @@ ClientData* us_get_user(AllClients* all, char* name){
 void us_remove_user(AllClients* all, char* name){
   for(int i=0;i<all->n;i++){
     if(strcmp(all->data[i].name,name)==0){
-      memcpy(all->data+i*sizeof(ClientData),all->data+(i+1)*sizeof(ClientData),(MAX_CLIENTS-i-1)*sizeof(ClientData));
+      memmove(all->data+i,all->data+(i+1),(MAX_CLIENTS-i-1)*sizeof(ClientData));
       all->n--;
       break;
     }

@@ -1,12 +1,13 @@
 #include "common.h"
 #include <netinet/in.h> 
-
+#include <pthread.h>
 
 
 typedef struct ClientData {
   char name[NAME_SIZE];
   struct sockaddr_in  udpAddr;
   SocketID socketFd;
+  pthread_mutex_t tcpLock;
 } ClientData;
 
 typedef struct AllClients {
