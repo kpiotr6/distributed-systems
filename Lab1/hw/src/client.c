@@ -22,6 +22,19 @@ SocketID socketUDP;
 SocketID socketMultiSend;
 SocketID socketMultiRecv;
 
+int endConnection()
+{
+    ClassicMessage packedMessage = {
+        .end = true,
+    };
+    memcpy(&(packedMessage.from), name, strlen(name));
+    
+    if(write(socketTCP, &packedMessage, sizeof(ClassicMessage))==-1){
+        LOG_ERROR("Unable to send ending message",true);
+    }
+    exit(0);
+}
+
 void shutdownClient(int signo){
   endConnection();
 }
@@ -82,7 +95,7 @@ SocketID createMulticastSocket(uint16_t port, char *addresIPMulticast, bool send
         addr.sin_addr.s_addr = inet_addr(addresIPMulticast);
         addr.sin_port = htons(port);
         addr.sin_zero[0] = '\0';
-        if (connect(fd, &addr, sizeof(struct sockaddr_in)) == -1)
+        if (connect(fd, (const struct sockaddr *)&addr, sizeof(struct sockaddr_in)) == -1)
         {
             LOG_ERROR("Unable to connect",true);
             return -1;
@@ -191,17 +204,7 @@ int requestList(SocketID tcpSocket)
         LOG_ERROR("Unable to request list of users",true);
     }
 }
-int endConnection()
-{
-    ClassicMessage packedMessage = {
-        .end = true,
-    };
-    memcpy(&(packedMessage.from), name, strlen(name));
-    
-    if(write(socketTCP, &packedMessage, sizeof(ClassicMessage))==-1){
-        LOG_ERROR("Unable to send ending message",true);
-    }
-}
+
 
 
 
@@ -212,21 +215,21 @@ int userLoop(SocketID tcpSocket, SocketID udpSocket, SocketID multicastSocket)
     int tmpSize = MESSAGE_SIZE;
     while (true)
     {
-        getline(&buffer, &tmpSize, stdin);
+        getline(&buffer, (size_t * restrict)&tmpSize, stdin);
         switch (buffer[0])
         {
             case 'S':
-                getline(&nameGiven, &tmpSize, stdin);
-                getline(&buffer, &tmpSize, stdin);
+                getline(&nameGiven, (size_t * restrict)&tmpSize, stdin);
+                getline(&buffer,(size_t * restrict) &tmpSize, stdin);
                 sendStandard(tcpSocket, buffer, nameGiven);
                 break;
             case 'U':
-                getline(&nameGiven, &tmpSize, stdin);
-                getdelim(&buffer, &tmpSize,';', stdin);
+                getline(&nameGiven, (size_t * restrict)&tmpSize, stdin);
+                getdelim(&buffer, (size_t * restrict)&tmpSize,';', stdin);
                 sendStandard(udpSocket, buffer, nameGiven);
                 break;
             case 'M':
-                getdelim(&buffer, &tmpSize,';', stdin);
+                getdelim(&buffer, (size_t * restrict)&tmpSize,';', stdin);
                 sendMulticast(multicastSocket, buffer);
                 break;
             case 'L':
@@ -309,7 +312,7 @@ void *recieveThread(void *data)
                 }
             }
         }
-        else
+        else if(strcmp(message.from,name)!=0)
         {
             printf("From: %s", message.from);
             printf("%s\n", message.message);

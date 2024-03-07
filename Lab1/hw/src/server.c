@@ -24,11 +24,7 @@ pthread_mutex_t userDataLock;
 SocketID tcpSocket;
 SocketID udpSocket;
 
-void shutdownServer(int signo)
-{
-    printf("lol\n");
-    closeServer();
-}
+
 void closeServer()
 {
     ClassicMessage message = INIT_CLASSIC_MESSAGE;
@@ -38,7 +34,6 @@ void closeServer()
         if (write(userData.data[i].socketFd, &message, sizeof(ClassicMessage)) == -1)
         {
             LOG_ERROR("Unable to send END message", true);
-            return -1;
         }
         shutdown(userData.data[i].socketFd, SHUT_RDWR);
         close(userData.data[i].socketFd);
@@ -48,7 +43,11 @@ void closeServer()
     close(udpSocket);
     exit(0);
 }
-
+void shutdownServer(int signo)
+{
+    printf("lol\n");
+    closeServer();
+}
 SocketID createIPSocket(uint16_t port, Protocol protocol, char *serverIPAddress)
 {
     SocketID fd = -1;
@@ -104,7 +103,7 @@ void *udpSocketThread(void *data)
     free(data);
     while (true)
     {
-        if (recvfrom(socket, &message, sizeof(ClassicMessage), 0, &addrSrc, &lenAddr) == -1)
+        if (recvfrom(socket, &message, sizeof(ClassicMessage), 0, (struct sockaddr * restrict)&addrSrc, &lenAddr) == -1)
         {
             LOG_ERROR("Unable to read from UDP socket", true);
         }
@@ -124,7 +123,7 @@ void *udpSocketThread(void *data)
             addrSrc = us_get_user(&userData, message.to)->udpAddr;
         }
         pthread_mutex_unlock(&userDataLock);
-        if (sendto(socket, &message, sizeof(ClassicMessage), 0, &addrSrc, sizeof(struct sockaddr_in)) == -1)
+        if (sendto(socket, &message, sizeof(ClassicMessage), 0, (const struct sockaddr *)&addrSrc, sizeof(struct sockaddr_in)) == -1)
         {
             LOG_ERROR("Sending data through UDP socket failed", true);
         }
@@ -253,7 +252,7 @@ int main()
     printf("Server ready\n");
     while (true)
     {
-        clientTCP = accept(tcpSocket, (const struct sockaddr *restrict)&addr, &addrLen);
+        clientTCP = accept(tcpSocket, (struct sockaddr *restrict)&addr, &addrLen);
         if (clientTCP == -1)
         {
             LOG_ERROR("Unable to accept connection", true);
