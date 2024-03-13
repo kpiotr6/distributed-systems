@@ -2,6 +2,13 @@ from enum import Enum
 
 
 class InfoTypesEnum(Enum):
-    TEMPERATURE = 1 << 0
-    RAIN = 1 << 1
-    WIND = 1 << 2
+
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
+
+    TEMPERATURE_MIN = "Minimum temperature (°C)"
+    TEMPERATURE_MAX = "Maximum temperature (°C)"
+    RAIN = "Rain (mm)"
+    WIND = "Wind (km/h)"
+    DATE = "Date"
