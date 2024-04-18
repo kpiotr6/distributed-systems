@@ -17,7 +17,7 @@ app = FastAPI()
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
-    return PlainTextResponse(str(exc), status_code=400)
+    return PlainTextResponse(str(exc.error), status_code=400)
 
 @app.get("/send",response_class=responses.HTMLResponse)
 async def get_form_response(city: str, from_date: date, to_date: date):
@@ -42,7 +42,7 @@ async def get_form_response(city: str, from_date: date, to_date: date):
         return build_response(vals,"Open Meteo", "Visual Crossing",name)
     except StatusCodeException as error:
         traceback.print_exc()
-        return PlainTextResponse(str(error.response+" "+str(error.code)+" "+str(error)),status_code=error.code)
+        return PlainTextResponse(str(error.code)+" "+str(error),status_code=error.code)
     except Exception as error:
         return PlainTextResponse("500 Internal Server Error "+str(error.args[0]), status_code=500)
 @app.get("/", response_class=responses.HTMLResponse)

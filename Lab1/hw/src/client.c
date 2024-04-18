@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,11 +9,12 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <math.h>
-#define _GNU_SOURCE
+
 #include <signal.h>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
 #include "common.h"
 #include "logger.h"
 
