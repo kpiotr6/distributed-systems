@@ -1,0 +1,105 @@
+import numpy as np
+import itertools
+@ray.remote
+def r_merge(arr, l1, r1, l2, r2):
+    tmp = []
+    i = 0
+    while l1 <= r1 and l2 <= r2:
+        if arr[l1] <= arr[l2]:
+            tmp.append(arr[l1])
+            i+=1
+            l1+=1
+        else:
+            tmp.append(arr[l2])
+            i+=1
+            l2+=1
+
+    while l1 <= r1:
+        tmp.append(arr[l1])
+        i+=1
+        l1+=1
+    while l2 <= r2:
+        tmp.append(arr[l2])
+        i+=1
+        l2+=1
+    return tmp
+
+@ray.remote
+class SortActor:
+    def __init__(self, arr, part_num):
+        size = len(arr)//part_num
+
+        self.arrs = []
+        for p in range(1,part_num+1):
+            self.arrs.append(arr[size*(p-1):size*p])
+
+    def get_part(self,i):
+        return self.arrs[i]
+
+    def set_part(self,i,arr):
+        self.arrs[i] = arr
+
+    def concatenate_all(self):
+        pointers = [0 for _ in range(len(self.arrs))]
+        result = []
+        while True:
+            f = False
+            for i, p in enumerate(pointers):
+                if p != len(self.arrs[i]):
+                    f = True
+                    currmin = self.arrs[i][p]
+                    break
+            if f==False:
+                break
+            print(f)
+            for i, p in enumerate(pointers):
+                if p != len(self.arrs[i]):
+                    if self.arrs[i][p] < currmin:
+                        ci = i
+                        currmin = self.arrs[i][p]
+            # result.append(self.arrs[i][pointers[ci]])
+            # pointers[ci]+=1
+
+
+
+        return result
+
+
+
+
+@ray.remote
+def part_calculate(to_sort: list):
+    for l in range(1,len(to_sort)):
+        i = 0
+        while i < len(to_sort):
+            l1 = i
+            r1 = i+l-1
+            l2 = i+l
+            r2 = i+2*l-1
+
+            if l2 >= len(to_sort):
+                break
+
+            if r2 >= len(to_sort):
+                r2 = len(to_sort) - 1
+
+            tmp = merge(to_sort, l1, r1, l2, r2)
+            for j in range(0,r2-l1+1):
+                to_sort[i+j] = tmp[j]
+            i = i+2*l
+        l = 2*l
+
+    return to_sort
+
+def calculate(to_sort):
+    n = 10
+    results = []
+    actor = SortActor.remote(to_sort,n)
+    # for i in range(4):
+    #     results.append(part_calculate.remote(actor.get_part.remote(i)))
+    # for i in range(4):
+    #     actor.set_part.remote(i,results[i])
+    return actor.concatenate_all.remote()
+
+a = np.random.rand(10000)
+ray.get(calculate(list(a)))
