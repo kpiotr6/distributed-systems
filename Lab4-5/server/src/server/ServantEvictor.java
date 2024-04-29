@@ -10,13 +10,13 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ServantEvictor implements ServantLocator, ObjectMapper
+public class ServantEvictor implements ServantLocator
 {
     private static final Logger LOGGER = Logger.getLogger( ServantEvictor.class.getName());
-    private final java.util.Map<Identity, EvictorEntry> map;
+    private final java.util.Map<String, EvictorEntry> map;
     private final List<String> queue;
     private final Set<String> removed;
-    private int size;
+    private final int size;
     private class EvictorEntry
     {
         Object servant;
@@ -31,7 +31,20 @@ public class ServantEvictor implements ServantLocator, ObjectMapper
         this.removed = new HashSet<>();
     }
     public List<String> getObjectsIdentities(){
-        return queue;
+        List<String> all = new ArrayList<>(queue.stream().toList());
+        all.addAll(removed);
+        return all;
+    }
+    public void removeServant(Identity identity){
+        String catName = identity.category+"/"+identity.name;
+        if(queue.contains(catName)){
+            queue.remove(catName);
+            map.remove(catName);
+        }
+        if(removed.contains(catName)){
+            removed.remove(catName);
+            ObjectSaver.remove(catName);
+        }
     }
     public AbstractSort createServant(Current current){
         Map<String, String> ctx = current.ctx;
@@ -53,19 +66,23 @@ public class ServantEvictor implements ServantLocator, ObjectMapper
     public LocateResult locate(com.zeroc.Ice.Current current)
     {
         LOGGER.log(Level.INFO, "Servant locator locate method");
-
-        EvictorEntry entry = map.get(current.id);
         String catName = current.id.category+"/"+current.id.name;
+        EvictorEntry entry = map.get(catName);
+
         if (entry != null) {
             queue.remove(catName);
         } else if(removed.contains(catName)) {
-            map.put(new Identity()loadServant(catName);
+            entry = new EvictorEntry();
+            entry.servant = loadServant(catName);
+            entry.useCount = 0;
+            map.put(catName, entry);
             evictServants();
         } else {
             entry = new EvictorEntry();
             entry.servant = createServant(current);
             entry.useCount = 0;
-            map.put(current.id, entry);
+            map.put(catName, entry);
+            evictServants();
         }
         ++(entry.useCount);
         queue.add(0,catName);
@@ -81,8 +98,9 @@ public class ServantEvictor implements ServantLocator, ObjectMapper
             removed.add(name);
         }
     }
-    private java.lang.Object loadServant(String filename){
-        java.lang.Object o = ObjectSaver.read(filename);
+    private Object loadServant(String filename){
+
+        Object o = (Object) ObjectSaver.read(filename);
         removed.remove(filename);
         queue.add(0,filename);
         return o;

@@ -18,6 +18,7 @@ public class ObjectManagerI implements ObjectManager {
 
     @Override
     public List<String> listObjects(Current current) {
+        LOGGER.log(Level.INFO,"LIST");
         return evictor.getObjectsIdentities();
     }
 
@@ -29,7 +30,8 @@ public class ObjectManagerI implements ObjectManager {
             LOGGER.log(Level.INFO, "Object removed {0}\\{1}",new Object[]{category,name});
         }
         else {
-            evictor.getObjectsIdentities();
+            evictor.removeServant(id);
+            LOGGER.log(Level.INFO, "Object removed {0}\\{1}",new Object[]{category,name});
         }
 
     }

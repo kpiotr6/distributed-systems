@@ -4,7 +4,6 @@ import com.zeroc.Ice.Communicator;
 import com.zeroc.Ice.Identity;
 import com.zeroc.Ice.ObjectAdapter;
 import com.zeroc.Ice.Util;
-import sorting.ObjectDestroyer;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -17,9 +16,10 @@ public class IceServer {
 		try {
 			communicator = Util.initialize(args,"config.server");
 			ObjectAdapter adapter = communicator.createObjectAdapter("Adapter1");
-//			ObjectDestroyer destroyer = new ObjectDestroyerI();
-//			adapter.add(destroyer,new Identity("destroyer","all"));
-			adapter.addServantLocator(new ServantEvictor(),"multiple");
+			ServantEvictor e = new ServantEvictor(2);
+			ObjectManagerI destroyer = new ObjectManagerI(e);
+			adapter.add(destroyer,new Identity("destroyer","all"));
+			adapter.addServantLocator(e,"multiple");
 			adapter.addDefaultServant(new SortDefaultI(),"single");
 			adapter.activate();
 			System.out.println("Entering event processing loop...");

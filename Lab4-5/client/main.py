@@ -68,6 +68,9 @@ def execute(command: CommandEnum, cat_name: str, c2=None, c3=None):
         case CommandEnum.LIST:
             for k, v in all_proxies.items():
                 print(k)
+            print("Remote:")
+            for s in destroyer.listObjects():
+                print(s)
 
         case CommandEnum.DESTROY:
             prx = all_proxies.get(cat_name)
