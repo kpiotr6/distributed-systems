@@ -9,11 +9,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class InsertionSort extends AbstractSort{
-
+    private static final Logger LOGGER = Logger.getLogger( InsertionSort.class.getName());
 
     @Override
     public void sortList(Ordering ordering, Current current) {
-
+        LOGGER.log(Level.INFO, "Sort List");
         Long tmp;
         List<Long> s = this.seqList;
         Comparator<Long> cmp;

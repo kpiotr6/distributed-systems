@@ -18,7 +18,7 @@ public class ObjectManagerI implements ObjectManager {
 
     @Override
     public List<String> listObjects(Current current) {
-        LOGGER.log(Level.INFO,"L");
+        LOGGER.log(Level.INFO,"List objects");
         return evictor.getObjectsIdentities();
     }
 
