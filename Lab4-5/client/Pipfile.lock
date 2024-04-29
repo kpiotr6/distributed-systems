@@ -1,0 +1,33 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "4d06c6065a0440d08afeb6d118ceb1b6e9372fd8fdc1319d7352103148e07fa4"
+        },
+        "pipfile-spec": 6,
+        "requires": {
+            "python_version": "3.11"
+        },
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "zeroc-ice": {
+            "hashes": [
+                "sha256:0709f663f05bbba3bcf62692356bcca57061c894668fa78bf23e8788fa5b41b3",
+                "sha256:2779ead1b8d4516a2158e0546e63eedaed6da2b6471f899182f4bcb69e31bf3d",
+                "sha256:552d2a3879df11b2e67fbe4600469fa157a19d4ce5cf82882971369957406ea6",
+                "sha256:5bca3ea55fe5f82a2c74d8f6792a033e98ca03a861eaabf1da4b92a00f0e8b91",
+                "sha256:735253574764510f2b32fb2f185121f683f1149d29fda826524a6dbae8988676",
+                "sha256:76350a18afce9684567cdd90ba1204dc33bcefe39b395e00baff09092f104c56"
+            ],
+            "index": "pypi",
+            "version": "==3.7.10"
+        }
+    },
+    "develop": {}
+}
