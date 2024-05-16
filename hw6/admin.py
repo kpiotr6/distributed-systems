@@ -7,6 +7,8 @@ import pickle
 
 E_SEND = "exchange1"
 E_RECV = "exchange2"
+FROM_ADMIN = "exchange3"
+TO_ADMIN = "exchange4"
 
 class RecieveThread(Thread):
     def __init__(self, queue, channel):
@@ -18,7 +20,7 @@ class RecieveThread(Thread):
         self.stopped = True
         
     def run(self):
-        for msg in self.channel.consume(self.queue, inactivity_timeout=1):
+        for msg in self.channel.consume(self.queue, inactivity_timeout=1, auto_ack=True):
             if self.stopped:
                 break
             if msg == (None,None,None):
@@ -28,41 +30,40 @@ class RecieveThread(Thread):
         self.channel.cancel()    
         
 class AdminShell(cmd.Cmd):
-    prompt = "Doctor >>> "
+    prompt = "Admin >>> "
     def __init__(self, channel: Channel):
         super().__init__()
         self.channel: Channel  = channel
     
-    def do_info(self, arg):
-        sent_to_tech(self.doctor_name, 'knee', arg, self.channel)
-        
+    def do_info(self, arg: str):
+        splitted = arg.split(" ", 1)
+        if len(splitted) != 2:
+            print("Wrong arguments")
+            return
+        name, message = splitted
+        info_other(name, message, self.channel)
     def do_exit(self, arg):
         self.close()
 
-def sent_to_tech(doctor: str, exam: str, surname: str, channel: Channel):
-    channel.basic_publish(exchange=E_SEND, routing_key=exam, body=pickle.dumps((exam, surname, doctor)))
+def info_other(name: str, mess: str, channel: Channel):
+    channel.basic_publish(exchange=FROM_ADMIN, routing_key=name, body=bytes(mess, encoding="utf-8"))
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Name not specified")
-        exit(1)
-    doctor_name = sys.argv[1]
+
     
     connection_send = pika.BlockingConnection(
-        pika.ConnectionParameters(host="localhost")
+        pika.ConnectionParameters(host="localhost", heartbeat=1000)
     )
     channel_send = connection_send.channel()
     
-    channel_send.exchange_declare(exchange=E_SEND, exchange_type="direct")
+    channel_send.exchange_declare(exchange=FROM_ADMIN, exchange_type="direct")
     
     connection_recv = pika.BlockingConnection(
-        pika.ConnectionParameters(host="localhost")
+        pika.ConnectionParameters(host="localhost", heartbeat=1000)
     )
     channel_recv = connection_recv.channel()
-    channel_recv.exchange_declare(exchange=E_RECV, exchange_type="direct")
-    result = channel_recv.queue_declare(queue="", exclusive=True)
+    result = channel_recv.queue_declare(queue=TO_ADMIN, exclusive=True)
     queue_name = result.method.queue
-    channel_recv.queue_bind(exchange=E_RECV, queue=queue_name, routing_key=doctor_name)
     tid = RecieveThread(queue_name, channel_recv)
     tid.start()
     
