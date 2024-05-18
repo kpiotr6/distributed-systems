@@ -8,7 +8,7 @@ import pickle
 E_SEND = "exchange1"
 E_RECV = "exchange2"
 FROM_ADMIN = "exchange3"
-TO_ADMIN = "exchange4"
+TO_ADMIN_QUEUE = "admin"
 
 class RecieveThread(Thread):
     def __init__(self, queue, channel):
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         pika.ConnectionParameters(host="localhost", heartbeat=1000)
     )
     channel_recv = connection_recv.channel()
-    result = channel_recv.queue_declare(queue=TO_ADMIN, exclusive=True)
+    result = channel_recv.queue_declare(queue=TO_ADMIN_QUEUE, exclusive=True)
     queue_name = result.method.queue
     tid = RecieveThread(queue_name, channel_recv)
     tid.start()

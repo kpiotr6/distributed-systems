@@ -8,7 +8,7 @@ import pickle
 E_SEND = "exchange1"
 E_RECV = "exchange2"
 FROM_ADMIN = "exchange3"
-TO_ADMIN = "exchange4"
+TO_ADMIN_QUEUE = "admin"
 
 doctor_name = ""
 
@@ -29,7 +29,7 @@ class RecieveThread(Thread):
                 continue
             print()
             print(msg[2].decode("utf-8"))
-            self.channel.basic_publish(exchange="", routing_key=TO_ADMIN, body=bytes("From doctor "+doctor_name+": "+msg[2].decode("utf-8"), encoding="utf-8"))
+            self.channel.basic_publish(exchange="", routing_key=TO_ADMIN_QUEUE, body=bytes("From doctor "+doctor_name+": "+msg[2].decode("utf-8"), encoding="utf-8"))
         self.channel.cancel()    
         
 class DoctShell(cmd.Cmd):
@@ -53,7 +53,7 @@ class DoctShell(cmd.Cmd):
 
 def sent_to_tech(doctor: str, exam: str, surname: str, channel: Channel):
     channel.basic_publish(exchange=E_SEND, routing_key=exam, body=pickle.dumps((exam, surname, doctor)))
-    channel.basic_publish(exchange="", routing_key=TO_ADMIN, body=bytes("From doctor "+doctor_name+": "+str((exam, surname, doctor)), encoding="utf-8"))
+    channel.basic_publish(exchange="", routing_key=TO_ADMIN_QUEUE, body=bytes("From doctor "+doctor_name+": "+str((exam, surname, doctor)), encoding="utf-8"))
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

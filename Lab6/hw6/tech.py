@@ -6,7 +6,7 @@ import pickle
 E_SEND = "exchange2"
 E_RECV = "exchange1"
 FROM_ADMIN = "exchange3"
-TO_ADMIN = "exchange4"
+TO_ADMIN_QUEUE = "admin"
 
 exams = ["knee", "hip", "elbow"]
 keys = []
@@ -17,12 +17,12 @@ def recieve(channel: Channel, method, properites, body):
     pr = "Recieved: "+body[0]+" "+body[1]+" From: "+body[2]
     print(pr)
     # log
-    channel.basic_publish(exchange="", routing_key=TO_ADMIN, body=bytes("From technician "+technician_name+": "+pr, encoding="utf-8"))
+    channel.basic_publish(exchange="", routing_key=TO_ADMIN_QUEUE, body=bytes("From technician "+technician_name+": "+pr, encoding="utf-8"))
     res = body[1]+" "+body[0]+" done"
     sleep(5)
     channel.basic_publish(exchange=E_SEND, routing_key=body[2], body=bytes(res, encoding="utf-8"))
     # log
-    channel.basic_publish(exchange="", routing_key=TO_ADMIN, body=bytes("From technician "+technician_name+": "+res, encoding="utf-8"))
+    channel.basic_publish(exchange="", routing_key=TO_ADMIN_QUEUE, body=bytes("From technician "+technician_name+": "+res, encoding="utf-8"))
     
     print("Sent results: "+body[1]+" "+body[0]+" done To: "+body[2])
     channel.basic_ack(delivery_tag=method.delivery_tag)
@@ -30,7 +30,7 @@ def recieve(channel: Channel, method, properites, body):
 def recieve_admin(channel: Channel, method, properites, body):
     body = body.decode("utf-8")
     print("From Admin: "+body)
-    channel.basic_publish(exchange="", routing_key=TO_ADMIN, body=bytes("From technician "+technician_name+": "+body, encoding="utf-8"))
+    channel.basic_publish(exchange="", routing_key=TO_ADMIN_QUEUE, body=bytes("From technician "+technician_name+": "+body, encoding="utf-8"))
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
@@ -61,7 +61,6 @@ if __name__ == "__main__":
     
     try:
         channel.start_consuming()
-        channel.stop_consuming()
     except KeyboardInterrupt:
         pass
     connection.close()
