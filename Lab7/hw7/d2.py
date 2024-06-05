@@ -2,74 +2,79 @@ from kazoo.recipe.watchers import ChildrenWatch
 from kazoo.client import KazooClient
 import time
 from threading import Thread
-
+import sys
 from treelib import Node, Tree
 from tkinter import *
 from tkinter import ttk
 
 
-zk = KazooClient("127.0.0.1:2181")
-watchers = []
+zk: KazooClient = None
 a_created = False
 new_empty = {}
 gui = None
 
-
-class Gui:
+class GuiThread(Thread):
 
     def __init__(self):
         Thread.__init__(self)
-        self.root = Tk()
-        self.frm = ttk.Frame(self.root, padding=10)
-        self.label: ttk.Label = ttk.Label(
-            self.frm, text="Hello World!").grid(column=0, row=0)
-        self.tree: ttk.Treeview = ttk.Treeview(self.frm).grid(column=1, row=0)
-        self.stopped = False
-        self.frm.grid()
 
     def update(self, number: int, tree: Tree, start: str):
-        self.root.after(100, self.update, number, tree, start)
+        self.root.after(0, self.__sub_update, number, tree, start)
 
-    def sub_update(self, number: int, tree: Tree, start: str):
+    def __sub_update(self, number: int, tree: Tree, start: str):
         self.label.config(text=str(number))
         self.tree.delete(*self.tree.get_children())
-        self.tree.insert("", END, start)
+        view_id = self.tree.insert("", END, text=start)
         for c in tree.children(start):
             c: Node
             subtree = tree.subtree(c.identifier)
-            self.update_tree(subtree, c.identifier, start)
+            self.__update_tree(subtree, c.identifier, view_id)
+        self.__expand_tree(self.tree, "")
 
-    def update_tree(self, tree: Tree, node_id: str, parent: str):
-        self.tree.insert(parent, END, node_id)
+    def __update_tree(self, tree: Tree, node_id: str, parent: str):
+        view_id = self.tree.insert(parent, END, text=tree[node_id].tag)
         for c in tree.children(node_id):
-            c: Node
             subtree = tree.subtree(c.identifier)
-            self.update_tree(subtree, c.identifier)
+            self.__update_tree(subtree, c.identifier, view_id)
+
+    def __expand_tree(self, tree: ttk.Treeview, item: str):
+        children = tree.get_children(item)
+        for child in children:
+            tree.item(child, open=True)
+            self.__expand_tree(tree, child)
 
     def run(self):
+        self.root = Tk()
+        self.frm = ttk.Frame(self.root, padding=10)
+        self.label: ttk.Label = ttk.Label(
+            self.frm, text="Hello World!")
+        
+        self.tree: ttk.Treeview = ttk.Treeview(self.frm)
+        self.label.grid(column=0, row=0)
+        self.tree.grid(column=1, row=0)
+        print(self.label)
+        self.frm.grid()
+        self.hide()
         self.root.mainloop()
 
-    def stop(self):
-        self.stopped = True
-        if self.stopped:
-            self.root.after(100, self.root.destroy)
-            return
+    def show(self):
+        self.root.after(0, self.root.deiconify)
+    def hide(self):
+        self.root.after(0, self.root.withdraw)
 
+gui:GuiThread
 
 def run_gui():
-    gui = Gui()
-    gui.run()
+    global gui
+    gui.show()
 
 
 def stop_gui():
     global gui
-    gui.stop()
-
+    gui.hide()
 
 def update_gui(number: int, tree: Tree, start: str):
     gui.update(number, tree, start)
-
-
 
 
 def get_tree_size(path):
@@ -96,21 +101,20 @@ def sub_generate_tree(path: str, tree: Tree, parent: str):
 
 
 def a_trigger(children, name):
-    run_gui()
     global a_created
     if 'a' in children and not a_created:
+        run_gui()
+        a_created = True
         ws = f"/a"
-        watchers.append(ws)
         zk.ChildrenWatch(
             ws, func=lambda ch: b_trigger(ch, ws))
-        a_created = True
-        print("/a")
         tree = generate_tree("/a")
         size = get_tree_size("/a")-1
         print(tree)
         update_gui(size, tree, "/a")
     else:
         a_created = False
+        stop_gui()
 
 
 def b_trigger(children, path):
@@ -118,21 +122,24 @@ def b_trigger(children, path):
         new_empty.update({path: False})
         ws = f"{path}/{c}"
         new_empty.update({ws: True})
-        watchers.append(ws)
         zk.ChildrenWatch(
             ws, func=lambda ch: b_trigger(ch, ws))
 
     if not new_empty.get(path):
-        print("/a")
         tree = generate_tree("/a")
         size = get_tree_size("/a")-1
         print(tree)
         update_gui(size, tree, "/a")
 
-
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        addres = None
+    else:
+        addres = sys.argv[1]
+    zk = KazooClient(addres)
     zk.start()
-    watchers.append("/")
+    gui = GuiThread()
+    gui.start()
     zk.ChildrenWatch("/", func=lambda d: a_trigger(d, "/"))
     try:
         while True:
