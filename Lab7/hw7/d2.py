@@ -13,6 +13,7 @@ a_created = False
 new_empty = {}
 gui = None
 
+
 class GuiThread(Thread):
 
     def __init__(self):
@@ -24,7 +25,7 @@ class GuiThread(Thread):
     def __sub_update(self, number: int, tree: Tree, start: str):
         self.label.config(text=str(number))
         self.tree.delete(*self.tree.get_children())
-        view_id = self.tree.insert("", END, text=start)
+        view_id = self.tree.insert("", END, text=start[1:])
         for c in tree.children(start):
             c: Node
             subtree = tree.subtree(c.identifier)
@@ -45,24 +46,33 @@ class GuiThread(Thread):
 
     def run(self):
         self.root = Tk()
-        self.frm = ttk.Frame(self.root, padding=10)
+        self.root.title("Znodes")
+        self.root.protocol("WM_DELETE_WINDOW", lambda: None)
+        self.frm = ttk.Frame(self.root, width=600, height=600)
+        self.frm.grid(row=0, column=0, sticky="NW")
+
+        self.root.resizable(False, False)
         self.label: ttk.Label = ttk.Label(
-            self.frm, text="Hello World!")
-        
+            self.frm, text="0",font='Arial 17 bold')
         self.tree: ttk.Treeview = ttk.Treeview(self.frm)
-        self.label.grid(column=0, row=0)
-        self.tree.grid(column=1, row=0)
+        tmp_label = ttk.Label = ttk.Label(
+            self.frm, text="Liczba potomków:",font='Arial 17 bold')
+        tmp_label.place(relx=0.5, rely=0.15, anchor=CENTER)
+        self.label.place(relx=0.5, rely=0.2, anchor=CENTER)
+        self.tree.place(relx=0.5, rely=0.5, anchor=CENTER,width=500)
         print(self.label)
-        self.frm.grid()
         self.hide()
         self.root.mainloop()
 
     def show(self):
         self.root.after(0, self.root.deiconify)
+
     def hide(self):
         self.root.after(0, self.root.withdraw)
 
-gui:GuiThread
+
+gui: GuiThread
+
 
 def run_gui():
     global gui
@@ -72,6 +82,7 @@ def run_gui():
 def stop_gui():
     global gui
     gui.hide()
+
 
 def update_gui(number: int, tree: Tree, start: str):
     gui.update(number, tree, start)
@@ -130,6 +141,7 @@ def b_trigger(children, path):
         size = get_tree_size("/a")-1
         print(tree)
         update_gui(size, tree, "/a")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
